@@ -71,6 +71,8 @@ hold off;
 
 %Intra-Cluster Average Degree
 
+avg_internal_degree = zeros(k, 1);
+
 for c = 1:k
     nodes_in_c = find(labels == c);     
     A_sub = A(nodes_in_c, nodes_in_c);  
@@ -89,17 +91,15 @@ inter_cluster_degree = zeros(k,1);
 for c = 1:k
     nodes_in_c = find(labels == c);       
     nodes_out_c = find(labels ~= c);      
-    
-
     A_out = A(nodes_in_c, nodes_out_c);
-    
-
     out_degrees = sum(A_out, 2);
-
     inter_cluster_degree(c) = mean(out_degrees);
 end
 
-% Display
 for c = 1:k
     fprintf('Cluster %d average inter-cluster degree: %.4f\n', c, inter_cluster_degree(c));
 end
+
+%Overall Averages
+fprintf('Average internal cluster degree: %.4f\n', mean(avg_internal_degree));
+fprintf('Average inter-cluster degree: %.4f\n', mean(inter_cluster_degree));
