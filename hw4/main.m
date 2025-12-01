@@ -14,9 +14,33 @@ D = diag(sum(A, 2)); %Diagonal Degree Matrix
 D_inv_sqrt = diag(1 ./ sqrt(diag(D)));
 L = D_inv_sqrt * A * D_inv_sqrt; %Normalized Laplacian
 
-k = 2; % Cluster Number
+%Number of 0 eigenvalues for graph analysis
+
+GL = D - A; % construct normal Laplacian
+
+e = eig(GL); % get all eigenvalues
+num_zero_eigenvalues = sum(abs(e) < 1e-10); % count eigenvalues close to 0
+disp(num_zero_eigenvalues)
+
+%Sorted Fiedler Observations
+
+[v, D] = eig(L);
+[vals_sorted, order] = sort(diag(D));
+fiedler = v(:, order(2));
+
+[f_sorted, idx_sorted] = sort(fiedler);
+figure;
+plot(f_sorted, '-o', 'MarkerSize',6);
+xlabel('Node (sorted by Fiedler value)');
+ylabel('Fiedler value');
+title('Sorted Fiedler Vector — community indication');
+grid on;
+
+k = 4; % Cluster Number
 
 [X, eigenValues] = eigs(L, k, 'largestabs'); %Extracting k largest eigenvalues
+
+N = size(X, 1);
 
 Y = zeros(N, k);
 
@@ -25,45 +49,36 @@ for i = 1:N
     Y(i, :) = X(i, :) / row_norm;       % divide each element by row norm
 end
 
-[labels, C] = kmeans(Y, k, 'Replicates', 10); %Run k means on the normalized matrix
+[labels] = kmeans(Y, k, 'Replicates', 10); %Run k means on the normalized matrix
 
-%Plotting Deatils
+%Plotting Details
 
 % Project to first two dimensions
-X_plot = Y(:,1:2);
-C_plot = C(:,1:2);
+X_plot = X(:,1:2);
 
 % Colormap
 colors = lines(k);
 
-figure;
+figure('Color', 'w');
+ax = gca;      
+ax.Color = 'w';  
+ax.XColor = 'k'; 
+ax.YColor = 'k'; 
 hold on;
+
+%Plot edges
+for i = 1:length(col1)
+    n1 = col1(i);
+    n2 = col2(i);
+    plot([X_plot(n1,1), X_plot(n2,1)], [X_plot(n1,2), X_plot(n2,2)], 'k-', 'LineWidth', 0.5); 
+end
 
 % Plot nodes
 h_points = gscatter(X_plot(:,1), X_plot(:,2), labels, colors, 'o', 8);
 
-% Plot centroids
-h_centroids = gobjects(k,1);  % preallocate handles
-for c = 1:k
-    h_centroids(c) = plot(C_plot(c,1), C_plot(c,2), 'x', ...
-        'MarkerSize',12, 'LineWidth',2, 'Color', colors(c,:));
-end
-
-% Create custom legend
-legend_entries = cell(2*k,1);
-for c = 1:k
-    legend_entries{c} = sprintf('Cluster %d', c);          % points
-    legend_entries{k+c} = sprintf('Centroid %d', c);       % centroids
-end
-
-% Combine handles for legend: first the scatter group handles, then centroid handles
-all_handles = [h_points; h_centroids];
-
-legend(all_handles, legend_entries, 'Location', 'best');
-
 xlabel('First eigenvector dimension');
 ylabel('Second eigenvector dimension');
-title('Spectral Clustering with Centroids');
+title('Spectral Clustering');
 grid on;
 hold off;
 
