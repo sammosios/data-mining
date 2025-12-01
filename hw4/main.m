@@ -24,7 +24,7 @@ disp(num_zero_eigenvalues)
 
 %Sorted Fiedler Observations
 
-[v, D] = eig(L);
+[v, D] = eig(GL);
 [vals_sorted, order] = sort(diag(D));
 fiedler = v(:, order(2));
 
