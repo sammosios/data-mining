@@ -1,0 +1,10 @@
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/config/GraphInitColorPolicy.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/config/Config.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/config/NodeSelectionPolicy.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/io/FileIO.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/Main.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/rand/RandNoGenerator.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/Node.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/io/GraphReader.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/Jabeja.java
+/Users/sam/kth/data-mining/hw5/src/main/java/se/kth/jabeja/io/CLI.java
