@@ -10,4 +10,8 @@ fi
 
 gnuplot -e "filename='$1'" graph.gnuplot
 
-xdg-open graph.png
+if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open graph.png || open graph.png
+else
+    open graph.png
+fi
