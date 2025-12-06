@@ -19,6 +19,8 @@ public class Jabeja {
   private int round;
   private float T;
   private boolean resultFileCreated = false;
+  private boolean differentAnnealing = true;
+  private float differentDelta = 0.9f;
 
   //-------------------------------------------------------------------
   public Jabeja(HashMap<Integer, Node> graph, Config config) {
@@ -27,7 +29,11 @@ public class Jabeja {
     this.round = 0;
     this.numberOfSwaps = 0;
     this.config = config;
-    this.T = config.getTemperature();
+    if (differentAnnealing){
+      this.T = 1.0f;
+    } else {
+      this.T = config.getTemperature();
+    }
   }
 
 
@@ -49,11 +55,18 @@ public class Jabeja {
    * Simulated analealing cooling function
    */
   private void saCoolDown(){
-    // TODO for second task
-    if (T > 1)
+    if (differentAnnealing) {
+      if (T < 0.00001f)
+        T = 0.00001f;
+      else {
+        T = T * differentDelta;
+      }
+    } else {
+      if (T > 1)
       T -= config.getDelta();
     if (T < 1)
       T = 1;
+    }
   }
 
   /**
@@ -96,8 +109,14 @@ public class Jabeja {
     Node bestPartner = null;
     double highestBenefit = 0;
 
+    Node[] nodeqs = new Node[nodes.length];
+
+    int idx = 0;
+
     for (Integer qId : nodes) {
+       
       Node nodeq = entireGraph.get(qId);
+      nodeqs[idx++] = nodeq;
 
       if (nodep.getColor() == nodeq.getColor()) {
         continue;
@@ -118,7 +137,41 @@ public class Jabeja {
         }
       }
     }
+
+    if (differentAnnealing && T > 0.00001f){ 
+      int iterations = 99;
+      Random rand = new Random();
+      for (int i = 0; i < iterations; i++) {
+        int rnd = rand.nextInt(nodeqs.length);
+        float chanceOfSwap = acceptance(nodeqs[rnd], nodep, bestPartner);
+        if (chanceOfSwap > rand.nextFloat()){ 
+            bestPartner = nodeqs[rnd];
+        }
+      }
+    }
+
     return bestPartner;
+  }
+
+  private float acceptance(Node nodeq, Node nodep, Node bestPartner){
+    int dp;
+    int dq;
+
+    if (bestPartner == null){
+      dp = getDegree(nodep, nodep.getColor());
+      dq = getDegree(nodeq, nodeq.getColor());
+    } else {
+      dp = getDegree(nodep, bestPartner.getColor());
+      dq = getDegree(bestPartner, nodep.getColor());
+    }
+
+    int dpNew = getDegree(nodep, nodeq.getColor());
+    int dqNew = getDegree(nodeq, nodep.getColor());
+
+    double benefitCurrent = Math.pow(dp, config.getAlpha()) + Math.pow(dq, config.getAlpha());
+    double benefitNew = Math.pow(dpNew, config.getAlpha()) + Math.pow(dqNew, config.getAlpha());
+
+    return (float) Math.pow(Math.E, (benefitNew - benefitCurrent) / T);
   }
 
   /**
