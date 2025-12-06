@@ -66,18 +66,27 @@ public class Jabeja {
 
     if (config.getNodeSelectionPolicy() == NodeSelectionPolicy.HYBRID
             || config.getNodeSelectionPolicy() == NodeSelectionPolicy.LOCAL) {
-      // swap with random neighbors
-      // TODO
+      Integer[] neighborNodes = getNeighbors(nodep);
+      Node bestPartner = findPartner(nodeId, neighborNodes);
+      partner = bestPartner;
     }
 
     if (config.getNodeSelectionPolicy() == NodeSelectionPolicy.HYBRID
             || config.getNodeSelectionPolicy() == NodeSelectionPolicy.RANDOM) {
-      // if local policy fails then randomly sample the entire graph
-      // TODO
-    }
+      if (partner != null) {
 
-    // swap the colors
-    // TODO
+      } else {
+        Integer[] neighborNodes = getSample(nodeId);
+        Node bestPartner = findPartner(nodeId, neighborNodes);
+        partner = bestPartner;
+      }
+    }
+    if (partner != null) {
+      numberOfSwaps++;
+      int tempColor = nodep.getColor();
+      nodep.setColor(partner.getColor());
+      partner.setColor(tempColor);
+    }
   }
 
   public Node findPartner(int nodeId, Integer[] nodes){
@@ -87,8 +96,28 @@ public class Jabeja {
     Node bestPartner = null;
     double highestBenefit = 0;
 
-    // TODO
+    for (Integer qId : nodes) {
+      Node nodeq = entireGraph.get(qId);
 
+      if (nodep.getColor() == nodeq.getColor()) {
+        continue;
+      }
+
+      int dp = getDegree(nodep, nodep.getColor());
+      int dq = getDegree(nodeq, nodeq.getColor());
+      int dpNew = getDegree(nodep, nodeq.getColor());
+      int dqNew = getDegree(nodeq, nodep.getColor());
+
+      double benefitCurrent = Math.pow(dp, config.getAlpha()) + Math.pow(dq, config.getAlpha());
+      double benefitNew = Math.pow(dpNew, config.getAlpha()) + Math.pow(dqNew, config.getAlpha());
+
+      if (benefitNew * T > benefitCurrent) {
+        if (benefitNew > highestBenefit) {
+          highestBenefit = benefitNew;
+          bestPartner = nodeq;
+        }
+      }
+    }
     return bestPartner;
   }
 
