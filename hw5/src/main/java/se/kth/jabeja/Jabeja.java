@@ -23,15 +23,16 @@ public class Jabeja {
   private float alpha;
   private float t_min = 0.00001f;
   private int annealingCount = 0;
-  private int resetMax = 30;
+  private int resetMax = 200;
   private int reset = resetMax;
   private int numOfResets = 0;
   private int minEdgeCut = Integer.MAX_VALUE;
+  private int roundAtMin = 0;
   private int linearAnnealingReset = 400;
   private enum AnnealingType {
     EXPONENTIAL, LOGISTIC, HEAVY_TAILED
   }
-  private AnnealingType anneal = AnnealingType.HEAVY_TAILED;
+  private AnnealingType anneal = AnnealingType.EXPONENTIAL;
   private Random random = new Random();
 
   // -------------------------------------------------------------------
@@ -63,6 +64,7 @@ public class Jabeja {
     System.out.println("Annealing type: " + anneal);
     System.out.println("Total resets: " + numOfResets);
     System.out.println("Minimum Edge Cut: " + minEdgeCut);
+    System.out.println("Round at Minimum Edge Cut: " + roundAtMin);
   }
 
   /**
@@ -75,9 +77,7 @@ public class Jabeja {
         T = t_min;
         reset -= 1;
         if (reset == 0) {
-          numOfResets++;
-          T = 1 - (numOfResets * 0.1f);
-          reset = resetMax;
+          T = 1;
         }
       }
     } else {
@@ -322,6 +322,7 @@ public class Jabeja {
 
     if (edgeCut < minEdgeCut) {
       minEdgeCut = edgeCut;
+      roundAtMin = round;
       System.out.println("New min edge cut: " + minEdgeCut + " at round " + round);
     }
 
