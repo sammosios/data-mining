@@ -52,7 +52,7 @@ public class CLI {
   private NodeSelectionPolicy nodeSelectionPolicy = NodeSelectionPolicy.HYBRID;
 
   @Option(name = "-graph", usage = "Location of the input graph.")
-  private static String GRAPH = "./graphs/ws-250.graph";
+  private static String GRAPH = "./graphs/3elt.graph";
 
   @Option(name = "-outputDir", usage = "Location of the output file(s)")
   private static String OUTPUT_DIR = "./output";

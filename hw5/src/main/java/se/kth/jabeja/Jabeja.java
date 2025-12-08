@@ -28,6 +28,10 @@ public class Jabeja {
   private int numOfResets = 0;
   private int minEdgeCut = Integer.MAX_VALUE;
   private int linearAnnealingReset = 400;
+  private enum AnnealingType {
+    EXPONENTIAL, LOGISTIC, HEAVY_TAILED
+  }
+  private AnnealingType anneal = AnnealingType.HEAVY_TAILED;
   private Random random = new Random();
 
   // -------------------------------------------------------------------
@@ -56,7 +60,7 @@ public class Jabeja {
       saCoolDown();
       report();
     }
-    System.out.println("Annealing count: " + annealingCount);
+    System.out.println("Annealing type: " + anneal);
     System.out.println("Total resets: " + numOfResets);
     System.out.println("Minimum Edge Cut: " + minEdgeCut);
   }
@@ -77,7 +81,7 @@ public class Jabeja {
         }
       }
     } else {
-      if (round == 400) {
+      if (round == linearAnnealingReset) {
         T = config.getTemperature();
       }
       if (T > 1)
@@ -194,7 +198,13 @@ public class Jabeja {
       return 0.0f;
     }
 
-    return (float) Math.pow(Math.E, (benefitNew - benefitCurrent) / T);
+    if (anneal == AnnealingType.EXPONENTIAL) {
+      return (float) Math.pow(Math.E, (benefitNew - benefitCurrent) / T);
+    } else if (anneal == AnnealingType.LOGISTIC) {
+      return (float) (1.0 / (1.0 + Math.exp(5*(benefitCurrent - benefitNew) / T)));
+    } else {
+      return (float) Math.pow(1 + ((benefitCurrent - benefitNew) / (3*T)), -3);
+    }
   }
 
   /**
