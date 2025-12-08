@@ -25,7 +25,9 @@ public class Jabeja {
   private int annealingCount = 0;
   private int resetMax = 30;
   private int reset = resetMax;
+  private int numOfResets = 0;
   private int minEdgeCut = Integer.MAX_VALUE;
+  private int linearAnnealingReset = 400;
   private Random random = new Random();
 
   // -------------------------------------------------------------------
@@ -55,6 +57,8 @@ public class Jabeja {
       report();
     }
     System.out.println("Annealing count: " + annealingCount);
+    System.out.println("Total resets: " + numOfResets);
+    System.out.println("Minimum Edge Cut: " + minEdgeCut);
   }
 
   /**
@@ -67,11 +71,15 @@ public class Jabeja {
         T = t_min;
         reset -= 1;
         if (reset == 0) {
-          T = .1f;
+          numOfResets++;
+          T = 1 - (numOfResets * 0.1f);
           reset = resetMax;
         }
       }
     } else {
+      if (round == 400) {
+        T = config.getTemperature();
+      }
       if (T > 1)
         T -= config.getDelta();
       if (T < 1)
@@ -159,7 +167,7 @@ public class Jabeja {
 
     if (bestPartner == null && differentAnnealing && T > t_min) {
       annealingCount++;
-      int iterations = 10;
+      int iterations = 100;
       for (int i = 0; i < iterations; i++) {
         int randomIndex = random.nextInt();
         Node randNeighbor = neighborNodes[Math.abs(randomIndex) % neighborNodes.length];
@@ -181,6 +189,10 @@ public class Jabeja {
 
     double benefitCurrent = Math.pow(dp, config.getAlpha()) + Math.pow(dq, config.getAlpha());
     double benefitNew = Math.pow(dpNew, config.getAlpha()) + Math.pow(dqNew, config.getAlpha());
+
+    if (benefitNew + 5 < benefitCurrent) {
+      return 0.0f;
+    }
 
     return (float) Math.pow(Math.E, (benefitNew - benefitCurrent) / T);
   }
