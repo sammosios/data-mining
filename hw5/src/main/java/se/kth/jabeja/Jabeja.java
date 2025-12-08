@@ -13,14 +13,22 @@ import java.util.*;
 public class Jabeja {
   final static Logger logger = Logger.getLogger(Jabeja.class);
   private final Config config;
-  private final HashMap<Integer/*id*/, Node/*neighbors*/> entireGraph;
+  private final HashMap<Integer/* id */, Node/* neighbors */> entireGraph;
   private final List<Integer> nodeIds;
   private int numberOfSwaps;
   private int round;
   private float T;
   private boolean resultFileCreated = false;
+  private boolean differentAnnealing = true;
+  private float alpha;
+  private float t_min = 0.00001f;
+  private int annealingCount = 0;
+  private int resetMax = 30;
+  private int reset = resetMax;
+  private int minEdgeCut = Integer.MAX_VALUE;
+  private Random random = new Random();
 
-  //-------------------------------------------------------------------
+  // -------------------------------------------------------------------
   public Jabeja(HashMap<Integer, Node> graph, Config config) {
     this.entireGraph = graph;
     this.nodeIds = new ArrayList(entireGraph.keySet());
@@ -28,36 +36,52 @@ public class Jabeja {
     this.numberOfSwaps = 0;
     this.config = config;
     this.T = config.getTemperature();
+    if (differentAnnealing) {
+      this.T = 1.0f;
+      this.alpha = 0.93f;
+    }
   }
 
-
-  //-------------------------------------------------------------------
+  // -------------------------------------------------------------------
   public void startJabeja() throws IOException {
     for (round = 0; round < config.getRounds(); round++) {
       for (int id : entireGraph.keySet()) {
         sampleAndSwap(id);
       }
 
-      //one cycle for all nodes have completed.
-      //reduce the temperature
+      // one cycle for all nodes have completed.
+      // reduce the temperature
       saCoolDown();
       report();
     }
+    System.out.println("Annealing count: " + annealingCount);
   }
 
   /**
    * Simulated analealing cooling function
    */
-  private void saCoolDown(){
-    // TODO for second task
-    if (T > 1)
-      T -= config.getDelta();
-    if (T < 1)
-      T = 1;
+  private void saCoolDown() {
+    if (differentAnnealing) {
+      T = T * alpha;
+      if (T < t_min) {
+        T = t_min;
+        reset -= 1;
+        if (reset == 0) {
+          T = .1f;
+          reset = resetMax;
+        }
+      }
+    } else {
+      if (T > 1)
+        T -= config.getDelta();
+      if (T < 1)
+        T = 1;
+    }
   }
 
   /**
    * Sample and swap algorith at node p
+   * 
    * @param nodeId
    */
   private void sampleAndSwap(int nodeId) {
@@ -65,14 +89,14 @@ public class Jabeja {
     Node nodep = entireGraph.get(nodeId);
 
     if (config.getNodeSelectionPolicy() == NodeSelectionPolicy.HYBRID
-            || config.getNodeSelectionPolicy() == NodeSelectionPolicy.LOCAL) {
+        || config.getNodeSelectionPolicy() == NodeSelectionPolicy.LOCAL) {
       Integer[] neighborNodes = getNeighbors(nodep);
       Node bestPartner = findPartner(nodeId, neighborNodes);
       partner = bestPartner;
     }
 
     if (config.getNodeSelectionPolicy() == NodeSelectionPolicy.HYBRID
-            || config.getNodeSelectionPolicy() == NodeSelectionPolicy.RANDOM) {
+        || config.getNodeSelectionPolicy() == NodeSelectionPolicy.RANDOM) {
       if (partner != null) {
 
       } else {
@@ -89,15 +113,20 @@ public class Jabeja {
     }
   }
 
-  public Node findPartner(int nodeId, Integer[] nodes){
+  public Node findPartner(int nodeId, Integer[] nodes) {
 
     Node nodep = entireGraph.get(nodeId);
 
     Node bestPartner = null;
     double highestBenefit = 0;
 
+    Node[] neighborNodes = new Node[nodes.length];
+    int idx = 0;
+
     for (Integer qId : nodes) {
       Node nodeq = entireGraph.get(qId);
+
+      neighborNodes[idx++] = nodeq;
 
       if (nodep.getColor() == nodeq.getColor()) {
         continue;
@@ -111,27 +140,63 @@ public class Jabeja {
       double benefitCurrent = Math.pow(dp, config.getAlpha()) + Math.pow(dq, config.getAlpha());
       double benefitNew = Math.pow(dpNew, config.getAlpha()) + Math.pow(dqNew, config.getAlpha());
 
-      if (benefitNew * T > benefitCurrent) {
-        if (benefitNew > highestBenefit) {
-          highestBenefit = benefitNew;
-          bestPartner = nodeq;
+      if (differentAnnealing) {
+        if (benefitNew > benefitCurrent) {
+          if (benefitNew > highestBenefit) {
+            highestBenefit = benefitNew;
+            bestPartner = nodeq;
+          }
+        }
+      } else {
+        if (benefitNew * T > benefitCurrent) {
+          if (benefitNew > highestBenefit) {
+            highestBenefit = benefitNew;
+            bestPartner = nodeq;
+          }
+        }
+      }
+    }
+
+    if (bestPartner == null && differentAnnealing && T > t_min) {
+      annealingCount++;
+      int iterations = 10;
+      for (int i = 0; i < iterations; i++) {
+        int randomIndex = random.nextInt();
+        Node randNeighbor = neighborNodes[Math.abs(randomIndex) % neighborNodes.length];
+        float acceptance = acceptanceProbability(nodep, randNeighbor);
+        if (acceptance > random.nextFloat()) {
+          bestPartner = randNeighbor;
+          break;
         }
       }
     }
     return bestPartner;
   }
 
+  private float acceptanceProbability(Node nodep, Node nodeq) {
+    int dp = getDegree(nodep, nodep.getColor());
+    int dq = getDegree(nodeq, nodeq.getColor());
+    int dpNew = getDegree(nodep, nodeq.getColor());
+    int dqNew = getDegree(nodeq, nodep.getColor());
+
+    double benefitCurrent = Math.pow(dp, config.getAlpha()) + Math.pow(dq, config.getAlpha());
+    double benefitNew = Math.pow(dpNew, config.getAlpha()) + Math.pow(dqNew, config.getAlpha());
+
+    return (float) Math.pow(Math.E, (benefitNew - benefitCurrent) / T);
+  }
+
   /**
    * The the degreee on the node based on color
+   * 
    * @param node
    * @param colorId
    * @return how many neighbors of the node have color == colorId
    */
-  private int getDegree(Node node, int colorId){
+  private int getDegree(Node node, int colorId) {
     int degree = 0;
-    for(int neighborId : node.getNeighbours()){
+    for (int neighborId : node.getNeighbours()) {
       Node neighbor = entireGraph.get(neighborId);
-      if(neighbor.getColor() == colorId){
+      if (neighbor.getColor() == colorId) {
         degree++;
       }
     }
@@ -140,6 +205,7 @@ public class Jabeja {
 
   /**
    * Returns a uniformly random sample of the graph
+   * 
    * @param currentNodeId
    * @return Returns a uniformly random sample of the graph
    */
@@ -168,6 +234,7 @@ public class Jabeja {
    * Get random neighbors. The number of random neighbors is controlled using
    * -closeByNeighbors command line argument which can be obtained from the config
    * using {@link Config#getRandomNeighborSampleSize()}
+   * 
    * @param node
    * @return
    */
@@ -198,7 +265,6 @@ public class Jabeja {
     Integer[] arr = new Integer[rndIds.size()];
     return rndIds.toArray(arr);
   }
-
 
   /**
    * Generate a report which is stored in a file in the output dir.
@@ -232,10 +298,15 @@ public class Jabeja {
 
     int edgeCut = grayLinks / 2;
 
+    if (edgeCut < minEdgeCut) {
+      minEdgeCut = edgeCut;
+      System.out.println("New min edge cut: " + minEdgeCut + " at round " + round);
+    }
+
     logger.info("round: " + round +
-            ", edge cut:" + edgeCut +
-            ", swaps: " + numberOfSwaps +
-            ", migrations: " + migrations);
+        ", edge cut:" + edgeCut +
+        ", swaps: " + numberOfSwaps +
+        ", migrations: " + migrations);
 
     saveToFile(edgeCut, migrations);
   }
@@ -244,19 +315,19 @@ public class Jabeja {
     String delimiter = "\t\t";
     String outputFilePath;
 
-    //output file name
+    // output file name
     File inputFile = new File(config.getGraphFilePath());
     outputFilePath = config.getOutputDir() +
-            File.separator +
-            inputFile.getName() + "_" +
-            "NS" + "_" + config.getNodeSelectionPolicy() + "_" +
-            "GICP" + "_" + config.getGraphInitialColorPolicy() + "_" +
-            "T" + "_" + config.getTemperature() + "_" +
-            "D" + "_" + config.getDelta() + "_" +
-            "RNSS" + "_" + config.getRandomNeighborSampleSize() + "_" +
-            "URSS" + "_" + config.getUniformRandomSampleSize() + "_" +
-            "A" + "_" + config.getAlpha() + "_" +
-            "R" + "_" + config.getRounds() + ".txt";
+        File.separator +
+        inputFile.getName() + "_" +
+        "NS" + "_" + config.getNodeSelectionPolicy() + "_" +
+        "GICP" + "_" + config.getGraphInitialColorPolicy() + "_" +
+        "T" + "_" + config.getTemperature() + "_" +
+        "D" + "_" + config.getDelta() + "_" +
+        "RNSS" + "_" + config.getRandomNeighborSampleSize() + "_" +
+        "URSS" + "_" + config.getUniformRandomSampleSize() + "_" +
+        "A" + "_" + config.getAlpha() + "_" +
+        "R" + "_" + config.getRounds() + ".txt";
 
     if (!resultFileCreated) {
       File outputDir = new File(config.getOutputDir());
@@ -267,11 +338,13 @@ public class Jabeja {
       }
       // create folder and result file with header
       String header = "# Migration is number of nodes that have changed color.";
-      header += "\n\nRound" + delimiter + "Edge-Cut" + delimiter + "Swaps" + delimiter + "Migrations" + delimiter + "Skipped" + "\n";
+      header += "\n\nRound" + delimiter + "Edge-Cut" + delimiter + "Swaps" + delimiter + "Migrations" + delimiter
+          + "Skipped" + "\n";
       FileIO.write(header, outputFilePath);
       resultFileCreated = true;
     }
 
-    FileIO.append(round + delimiter + (edgeCuts) + delimiter + numberOfSwaps + delimiter + migrations + "\n", outputFilePath);
+    FileIO.append(round + delimiter + (edgeCuts) + delimiter + numberOfSwaps + delimiter + migrations + "\n",
+        outputFilePath);
   }
 }
